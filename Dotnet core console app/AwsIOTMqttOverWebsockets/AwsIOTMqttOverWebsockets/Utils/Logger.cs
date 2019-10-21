@@ -7,6 +7,7 @@ using System.Reflection;
 using System.IO;
 using log4net;
 using log4net.Config;
+
 namespace AwsIOTMqttOverWebsockets.Utils
 {
     public static class Logger

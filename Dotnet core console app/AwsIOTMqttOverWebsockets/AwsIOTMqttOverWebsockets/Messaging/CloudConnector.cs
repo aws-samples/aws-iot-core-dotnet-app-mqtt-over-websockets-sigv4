@@ -1,143 +1,111 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using MQTTnet.Client;
 using MQTTnet;
 using AwsIOTMqttOverWebsockets.Utils;
 using AwsIOTMqttOverWebsockets.Model;
-using System.Threading;
+using System.Threading.Tasks;
+using System.Text;
+using MQTTnet.Protocol;
 
 namespace AwsIOTMqttOverWebsockets.Messaging
 {
     public class CloudConnector
     {
         private CloudConnectionConfig cloudConnectionConfig;
-        public IMqttClient mqttClient;
+        private IMqttClient mqttClient;
         private IMqttClientOptions mqttClientOptions;
-        private bool IsConnected;
+        private bool isSubscribed;
 
-
-        public CloudConnector(CloudConnectionConfig cloudConnectionConfig1)
+        public CloudConnector(CloudConnectionConfig cloudConnectionConfig)
         {
-            cloudConnectionConfig = cloudConnectionConfig1;
+            this.cloudConnectionConfig = cloudConnectionConfig;
+            isSubscribed = false;
         }
 
-        public void ConnectToAwsIOT()
+        public async Task ConnectToAwsIoT()
         {
             try
             {
+                AwsMqttConnection awsMqttConnection = new AwsMqttConnection
+                {
+                    Host = cloudConnectionConfig.Host,
+                    Region = cloudConnectionConfig.Region,
+                    AccessKey = cloudConnectionConfig.AccessKey,
+                    SecretKey = cloudConnectionConfig.SecretKey
+                };
 
-
-                AwsMqttConnection awsMqttConnection = new AwsMqttConnection();
-                awsMqttConnection.Host = cloudConnectionConfig.Host;
-                awsMqttConnection.Region = cloudConnectionConfig.Region;
-                awsMqttConnection.AccessKey = cloudConnectionConfig.AccessKey;
-                awsMqttConnection.SecretKey = cloudConnectionConfig.SecretKey;
-
-                awsMqttConnection.ClientId = new Guid();
-
-                string requestUrl = awsMqttConnection.GetRequesturl();
+                string signedRequestUrl = awsMqttConnection.SignRequestUrl();
 
                 var factory = new MqttFactory();
                 mqttClient = factory.CreateMqttClient();
 
-
                 mqttClientOptions = new MqttClientOptionsBuilder()
-                        .WithWebSocketServer(requestUrl)
+                        .WithWebSocketServer(signedRequestUrl)
                         .Build();
 
-
-
-                mqttClient.ConnectAsync(mqttClientOptions).Wait();
-                IsConnected = true;
+                await mqttClient.ConnectAsync(mqttClientOptions);
                 Logger.LogInfo("Connected successfully .....");
-
             }
             catch (Exception ex)
             {
-                Logger.LogDebug(ex.Message);
+                Logger.LogError(ex.Message);
+                throw;
             }
         }
 
-     
-
-        public  async void PublishMessage()
+        public async Task PublishMessage(string message, string topic)
         {
             try
             {
-
-                if (mqttClient==null)
-                {
-                    ConnectToAwsIOT();
-
-                    
-                }
-
-                if (IsConnected)
-
-                { 
-                await mqttClient.PublishAsync(cloudConnectionConfig.TopicToPublish, cloudConnectionConfig.MessageToPublish, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce, false);
-
-
-                    Logger.LogInfo("Message published successfully");
-                }
-
-                else
-                {
-
-                    Logger.LogInfo("Waiting for connection to complete");
-                }
+                await mqttClient.PublishAsync(topic, message, MqttQualityOfServiceLevel.AtLeastOnce, false);
+                Logger.LogInfo($"Published message: {message}");
             }
             catch (Exception ex)
             {
-                Logger.LogDebug(ex.Message);
+                Logger.LogError(ex.Message);
             }
         }
 
-        public  async void SubscribeMessage()
+        public async Task SubscribeTo(string topic)
         {
-
             try
             {
-
-                if (mqttClient == null)
+                if (!isSubscribed)
                 {
-                    ConnectToAwsIOT();
-
-                }
-
-              
-
-                if (IsConnected)
-
-                {
-                    string topic = cloudConnectionConfig.TopicToSubscribe;
                     mqttClient.ApplicationMessageReceived += MqttClient_ApplicationMessageReceived;
 
-                    await mqttClient.SubscribeAsync(cloudConnectionConfig.TopicToSubscribe);
-                Logger.LogInfo("subscribed");
-
+                    await mqttClient.SubscribeAsync(topic);
+                    Logger.LogInfo($"Subscribed to: {topic}");
+                    isSubscribed = true;
                 }
-
-                else
+                else 
                 {
-                    Logger.LogInfo("Waiting for connection to complete");
+                    Logger.LogInfo($"Already subscribed to: {topic}");
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogDebug(ex.Message);
+                Logger.LogError(ex.Message);
             }
         }
 
         private void MqttClient_ApplicationMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
         {
-            AwsMqttConnection awsMqttConnection = new AwsMqttConnection();
-            string message=awsMqttConnection.ProcessReceivedMessages(e);
-            Logger.LogInfo(message);
-        }
+            StringBuilder stringBuilder = new StringBuilder();
+            string payload = System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload, 0, e.ApplicationMessage.Payload.Length);
 
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("### RECEIVED APPLICATION MESSAGE ###");
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("Topic " + e.ApplicationMessage.Topic);
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("Pay load" + payload);
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("QOS " + e.ApplicationMessage.QualityOfServiceLevel);
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append("QOS " + "Retain " + e.ApplicationMessage.Retain);
+
+            Logger.LogInfo(stringBuilder.ToString());
+        }
     }
 }

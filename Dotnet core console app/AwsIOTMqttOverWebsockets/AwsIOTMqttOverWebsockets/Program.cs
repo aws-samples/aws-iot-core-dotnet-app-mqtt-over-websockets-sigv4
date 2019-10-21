@@ -1,51 +1,38 @@
 ﻿using System;
 using AwsIOTMqttOverWebsockets.Model;
 using AwsIOTMqttOverWebsockets.Messaging;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace AwsIOTMqttOverWebsockets
 {
     class Program 
     {
-       
-
-
-
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-           
-
-            CloudConnectionConfig cloudConnectionConfig = ConnectionConfigManager.GetConnectionConfig();
-
+            CloudConnectionConfig cloudConnectionConfig = CloudConnectionConfig.Instance;
             CloudConnector cloudConnector = new CloudConnector(cloudConnectionConfig);
 
+            string topic = "mytest/topic";
+            string message = "Test message";
+            int i = 0;
 
-
-            Console.WriteLine("Enter 1 for Publish. 2 for subscribe.");
-
-
-            string input = Console.ReadLine();
-           
-            if (input=="1")
+            await cloudConnector.ConnectToAwsIoT();
+            while (true) 
             {
-
-                cloudConnector.PublishMessage();
+                Console.WriteLine("Enter 1 for publish. 2 for subscribe.");
+                string input = Console.ReadLine();
+            
+                if (input == "1")
+                {
+                    await cloudConnector.PublishMessage($"{message} {i}", topic);
+                }
+                else if (input == "2")
+                {
+                    await cloudConnector.SubscribeTo(topic);
+                }
+                
+                i++;
             }
-
-            else if (input=="2")
-            {
-                cloudConnector.SubscribeMessage();
-            }
-
-
-
-            Console.ReadLine();
-
-
         }
-
-      
-
-
     }
 }
