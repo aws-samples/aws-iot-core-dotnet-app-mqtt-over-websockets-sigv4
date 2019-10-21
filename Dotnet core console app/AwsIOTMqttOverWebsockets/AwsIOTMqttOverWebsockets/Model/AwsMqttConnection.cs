@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using AwsIOTMqttOverWebsockets.Signers;
-using AwsIOTMqttOverWebsockets.Utils;
 
 namespace AwsIOTMqttOverWebsockets.Model
 {
@@ -35,7 +34,7 @@ namespace AwsIOTMqttOverWebsockets.Model
             var signedRequestBuilder = new UriBuilder(endpointBuilder.Uri);
             signedRequestBuilder.Query = authorization;
 
-            return signedRequestBuilder.Uri.AbsoluteUri;;
+            return signedRequestBuilder.Uri.AbsoluteUri;
         }
     }
 }
