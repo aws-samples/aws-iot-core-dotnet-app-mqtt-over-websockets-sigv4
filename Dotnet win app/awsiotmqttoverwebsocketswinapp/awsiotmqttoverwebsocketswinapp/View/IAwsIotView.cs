@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace awsiotmqttoverwebsocketswinapp.View
+﻿namespace awsiotmqttoverwebsocketswinapp.View
 {
- public   interface IAwsIotView
+    public interface IAwsIotView
     {
         string HostText { get; set; }
 
@@ -18,7 +12,7 @@ namespace awsiotmqttoverwebsocketswinapp.View
 
         string TopicToPublishText { get; set; }
 
-       string TopicToSubscribeText { get; set; }
+        string TopicToSubscribeText { get; set; }
 
         string PublishStatusLabel { get; set; }
 
@@ -26,7 +20,8 @@ namespace awsiotmqttoverwebsocketswinapp.View
 
         string PublishMessageText { get; set; }
 
-        string SubscribeMessageText { get; set; }
+        string ReceivedMessageText { get; set; }
 
+        string SubscribeStatusLabel { get; set; }
     }
 }
