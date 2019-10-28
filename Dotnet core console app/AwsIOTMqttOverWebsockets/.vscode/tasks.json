@@ -7,9 +7,8 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/AwsIOTMqttOverWebsockets/AwsIOTMqttOverWebsockets.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
+                "${workspaceFolder}/AwsIOTMqttOverWebsockets.sln",
+                "/property:GenerateFullPaths=true"
             ],
             "problemMatcher": "$msCompile"
         },

@@ -94,16 +94,12 @@ namespace AwsIOTMqttOverWebsockets.Messaging
             StringBuilder stringBuilder = new StringBuilder();
             string payload = System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload, 0, e.ApplicationMessage.Payload.Length);
 
-            stringBuilder.Append(Environment.NewLine);
-            stringBuilder.Append("### RECEIVED APPLICATION MESSAGE ###");
-            stringBuilder.Append(Environment.NewLine);
-            stringBuilder.Append("Topic " + e.ApplicationMessage.Topic);
-            stringBuilder.Append(Environment.NewLine);
-            stringBuilder.Append("Pay load" + payload);
-            stringBuilder.Append(Environment.NewLine);
-            stringBuilder.Append("QOS " + e.ApplicationMessage.QualityOfServiceLevel);
-            stringBuilder.Append(Environment.NewLine);
-            stringBuilder.Append("QOS " + "Retain " + e.ApplicationMessage.Retain);
+            stringBuilder.AppendLine("### RECEIVED APPLICATION MESSAGE ###");
+            stringBuilder.AppendLine("Topic: " + e.ApplicationMessage.Topic);
+            stringBuilder.AppendLine("Payload: " + payload);
+            stringBuilder.AppendLine("QOS: " + e.ApplicationMessage.QualityOfServiceLevel);
+            stringBuilder.AppendLine("QOS Retain: " + e.ApplicationMessage.Retain);
+            stringBuilder.AppendLine();
 
             Logger.LogInfo(stringBuilder.ToString());
         }

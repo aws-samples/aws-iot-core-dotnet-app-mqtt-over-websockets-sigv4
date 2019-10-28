@@ -8,7 +8,7 @@ namespace AwsIOTMqttOverWebsockets.Utils
     {
         public static string ReadSetting(string key)
         {
-            string result = "NotFound";
+            string result;
 
             try
             {
