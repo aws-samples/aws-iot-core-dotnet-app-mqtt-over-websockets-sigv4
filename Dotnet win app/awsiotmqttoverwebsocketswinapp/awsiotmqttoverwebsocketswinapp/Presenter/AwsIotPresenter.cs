@@ -1,107 +1,117 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using awsiotmqttoverwebsocketswinapp.View;
 using awsiotmqttoverwebsocketswinapp.Model;
 using MQTTnet.Client;
 using MQTTnet;
 using awsiotmqttoverwebsocketswinapp.Utils;
+using System.Text;
+using System.Collections.Generic;
 
 namespace awsiotmqttoverwebsocketswinapp.Presenter
 {
     public class AwsIotPresenter
     {
-        IAwsIotView view1;
+        private readonly IAwsIotView view;
+
         public IMqttClient mqttClient;
         private IMqttClientOptions mqttClientOptions;
+        private string lastSubscribedTopic;
        
-
         public AwsIotPresenter(IAwsIotView view)
         {
-
-            view1 = view;
-
+            this.view = view;
         }
 
-        public async void MakeConnection()
+        public async Task ConnectToAwsIoT()
         {
             try
             {
+                AwsMqttConnection awsMqttConnection = new AwsMqttConnection
+                {
+                    Host = view.HostText,
+                    Region = view.RegionText,
+                    AccessKey = view.AccessKeyText,
+                    SecretKey = view.SecretKeyText
+                };
 
-            
-            AwsMqttConnection awsMqttConnection = new AwsMqttConnection();
-            awsMqttConnection.Host = view1.HostText;
-            awsMqttConnection.Region = view1.RegionText;
-            awsMqttConnection.AccessKey = view1.AccessKeyText;
-            awsMqttConnection.SecretKey = view1.SecretKeyText;
-            awsMqttConnection.ClientId = new Guid();
+                string signedRequestUrl = awsMqttConnection.SignRequestUrl();
 
-            string requestUrl = awsMqttConnection.GetRequesturl();
+                var factory = new MqttFactory();
+                mqttClient = factory.CreateMqttClient();
+                mqttClient.Connected += MqttClient_Connected;
+                mqttClient.ApplicationMessageReceived += MqttClient_ApplicationMessageReceived;
 
-            var factory = new MqttFactory();
-            mqttClient = factory.CreateMqttClient();
+                mqttClientOptions = new MqttClientOptionsBuilder()
+                        .WithWebSocketServer(signedRequestUrl)
+                        .Build();
 
-
-            mqttClientOptions = new MqttClientOptionsBuilder()
-                    .WithWebSocketServer(requestUrl)
-                    .Build();
-
-            mqttClient.Connected += MqttClient_Connected;
-
-            await mqttClient.ConnectAsync(mqttClientOptions);
-
+                await mqttClient.ConnectAsync(mqttClientOptions);
+                Logger.LogInfo("Connected successfully .....");
             }
             catch (Exception ex)
             {
-                Logger.LogDebug(ex.Message);
+                Logger.LogError(ex.Message);
             }
         }
 
         private void MqttClient_Connected(object sender, MqttClientConnectedEventArgs e)
         {
-
-
-            view1.ConnectStatusLabel = "Connected";
-
-
-
+            view.ConnectStatusLabel = "Connected";
         }
 
-        public async void PublishMessage()
+        public async Task PublishMessage(string message, string topic)
         {
             try
-            { 
-            await mqttClient.PublishAsync(view1.TopicToPublishText, view1.PublishMessageText, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce, false);
-            }
-            catch(Exception ex)
             {
-                Logger.LogDebug(ex.Message);
+                await mqttClient.PublishAsync(topic, message, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce, false);
+                Logger.LogInfo($"Published message: {message}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
             }
         }
 
-        public async void SubscribeMessage()
+        public async Task SubscribeTo(string topic)
         {
-            
             try
             {
+                if (lastSubscribedTopic != topic)
+                {
+                    if (lastSubscribedTopic != null)
+                        await mqttClient.UnsubscribeAsync(lastSubscribedTopic);
 
-            
-            mqttClient.ApplicationMessageReceived += MqttClient_ApplicationMessageReceived;
+                    await mqttClient.SubscribeAsync(topic);
+                    Logger.LogInfo($"Subscribed to: {topic}");
+                    lastSubscribedTopic = topic;
 
-            await mqttClient.SubscribeAsync(view1.TopicToSubscribeText);
+                    view.SubscribeStatusLabel = $"Subscribed to {topic}";
+                }
+                else
+                {
+                    Logger.LogInfo($"Already subscribed to: {topic}");
+                }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Logger.LogDebug(ex.Message);
+                Logger.LogError(ex.Message);
             }
         }
 
         private void MqttClient_ApplicationMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
         {
-            AwsMqttConnection awsMqttConnection = new AwsMqttConnection();
-            view1.SubscribeMessageText = awsMqttConnection.ProcessReceivedMessages(e);
+            StringBuilder stringBuilder = new StringBuilder();
+            string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload, 0, e.ApplicationMessage.Payload.Length);
+
+            stringBuilder.AppendLine("### RECEIVED APPLICATION MESSAGE ###");
+            stringBuilder.AppendLine("Topic: " + e.ApplicationMessage.Topic);
+            stringBuilder.AppendLine("Payload: " + payload);
+            stringBuilder.AppendLine("QOS: " + e.ApplicationMessage.QualityOfServiceLevel);
+            stringBuilder.AppendLine("QOS Retain: " + e.ApplicationMessage.Retain);
+            stringBuilder.AppendLine();
+            
+            view.ReceivedMessageText = stringBuilder.ToString();
         }
     }
 }

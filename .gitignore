@@ -1,0 +1,6 @@
+bin
+obj
+*.log
+.vs
+*.csproj.user
+packages
