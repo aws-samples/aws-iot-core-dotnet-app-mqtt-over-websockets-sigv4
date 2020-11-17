@@ -42,7 +42,8 @@ namespace AwsIOTMqttOverWebsockets.Signers
                                        string queryParameters,
                                        string bodyHash,
                                        string awsAccessKey,
-                                       string awsSecretKey)
+                                       string awsSecretKey,
+                                       string awsSessionToken)
         {
             // first get the date and time for the subsequent request, and convert to ISO 8601 format
             // for use in signature generation
@@ -142,8 +143,18 @@ namespace AwsIOTMqttOverWebsockets.Signers
                     X_Amz_Algorithm, 
                     X_Amz_Credential, 
                     X_Amz_Date, 
-                    X_Amz_SignedHeaders 
+                    X_Amz_SignedHeaders,
+                    X_Amz_Signature
                 };
+
+            if (!string.IsNullOrEmpty(awsSessionToken))
+            {
+                var authParamsList = authParams.Append(X_Amz_Security_Token);
+                authParams = authParamsList.ToArray();
+            }
+
+            paramDictionary.Add(X_Amz_Signature, signatureString);
+            paramDictionary.Add(X_Amz_Security_Token, HttpHelpers.UrlEncode(awsSessionToken));
 
             foreach (var p in authParams)
             {
@@ -151,8 +162,6 @@ namespace AwsIOTMqttOverWebsockets.Signers
                     authString.Append("&");
                 authString.AppendFormat("{0}={1}", p, paramDictionary[p]);
             }
-
-            authString.AppendFormat("&{0}={1}", X_Amz_Signature, signatureString);
 
             var authorization = authString.ToString();
             Logger.LogDebug($"\nAuthorization:\n{authorization}");

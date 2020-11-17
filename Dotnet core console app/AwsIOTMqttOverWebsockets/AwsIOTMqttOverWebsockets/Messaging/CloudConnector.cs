@@ -31,7 +31,8 @@ namespace AwsIOTMqttOverWebsockets.Messaging
                     Host = cloudConnectionConfig.Host,
                     Region = cloudConnectionConfig.Region,
                     AccessKey = cloudConnectionConfig.AccessKey,
-                    SecretKey = cloudConnectionConfig.SecretKey
+                    SecretKey = cloudConnectionConfig.SecretKey,
+                    SessionToken = cloudConnectionConfig.SessionToken
                 };
 
                 string signedRequestUrl = awsMqttConnection.SignRequestUrl();
