@@ -33,6 +33,7 @@ namespace AwsIOTMqttOverWebsockets.Signers
         public const string X_Amz_Content_SHA256 = "X-Amz-Content-SHA256";
         public const string X_Amz_Decoded_Content_Length = "X-Amz-Decoded-Content-Length";
         public const string X_Amz_Meta_UUID = "X-Amz-Meta-UUID";
+        public const string X_Amz_Security_Token = "X-Amz-Security-Token";
 
         // the name of the keyed hash algorithm used in signing
         public const string HMACSHA256 = "HMACSHA256";

@@ -10,6 +10,7 @@ namespace AwsIOTMqttOverWebsockets.Model
         public string Region { get; set; }
         public string AccessKey { get; set; }
         public string SecretKey { get; set; }
+        public string SessionToken { get; set; }
 
         public string SignRequestUrl()
         {
@@ -29,7 +30,8 @@ namespace AwsIOTMqttOverWebsockets.Model
                                                         string.Empty,
                                                         AWS4SignerBase.EMPTY_BODY_SHA256,
                                                         this.AccessKey,
-                                                        this.SecretKey);
+                                                        this.SecretKey,
+                                                        this.SessionToken);
 
             var signedRequestBuilder = new UriBuilder(endpointBuilder.Uri);
             signedRequestBuilder.Query = authorization;

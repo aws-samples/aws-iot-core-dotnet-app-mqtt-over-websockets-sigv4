@@ -45,5 +45,13 @@ namespace AwsIOTMqttOverWebsockets.Model
                 return ConfigHelper.ReadSetting("secretkey");
             }
         }
+
+        public string SessionToken
+        {
+            get
+            {
+                return ConfigHelper.ReadSetting("sessiontoken");
+            }
+        }
     }
 }
