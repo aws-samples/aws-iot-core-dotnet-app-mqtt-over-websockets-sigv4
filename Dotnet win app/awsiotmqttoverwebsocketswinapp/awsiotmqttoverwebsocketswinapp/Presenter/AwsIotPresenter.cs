@@ -3,6 +3,14 @@ using System.Threading.Tasks;
 using awsiotmqttoverwebsocketswinapp.View;
 using awsiotmqttoverwebsocketswinapp.Model;
 using MQTTnet.Client;
+using MQTTnet.Client.Connecting;
+using MQTTnet.Client.Disconnecting;
+using MQTTnet.Client.Options;
+using MQTTnet.Client.Receiving;
+using MQTTnet.Extensions.ManagedClient;
+using MQTTnet.Formatter;
+using MQTTnet.Protocol;
+using MQTTnet.Server;
 using MQTTnet;
 using awsiotmqttoverwebsocketswinapp.Utils;
 using System.Text;
@@ -17,7 +25,9 @@ namespace awsiotmqttoverwebsocketswinapp.Presenter
         public IMqttClient mqttClient;
         private IMqttClientOptions mqttClientOptions;
         private string lastSubscribedTopic;
-       
+        private IManagedMqttClient managedMqttClientPublisher;
+        //private IManagedMqttClient managedMqttClientSubscriber;
+
         public AwsIotPresenter(IAwsIotView view)
         {
             this.view = view;
@@ -38,16 +48,32 @@ namespace awsiotmqttoverwebsocketswinapp.Presenter
                 string signedRequestUrl = awsMqttConnection.SignRequestUrl();
 
                 var factory = new MqttFactory();
-                mqttClient = factory.CreateMqttClient();
-                mqttClient.Connected += MqttClient_Connected;
-                mqttClient.ApplicationMessageReceived += MqttClient_ApplicationMessageReceived;
+
+                var options = new MqttClientOptions
+                {
+                    CleanSession = true,
+                    KeepAlivePeriod = TimeSpan.FromSeconds(5)
+                };
 
                 mqttClientOptions = new MqttClientOptionsBuilder()
                         .WithWebSocketServer(signedRequestUrl)
+                        .WithCleanSession(true)
+                        .WithKeepAlivePeriod(TimeSpan.FromSeconds(5))
                         .Build();
 
-                await mqttClient.ConnectAsync(mqttClientOptions);
-                Logger.LogInfo("Connected successfully .....");
+                this.managedMqttClientPublisher = factory.CreateManagedMqttClient();
+                this.managedMqttClientPublisher.UseApplicationMessageReceivedHandler(this.HandleReceivedApplicationMessage);
+                this.managedMqttClientPublisher.ConnectedHandler = new MqttClientConnectedHandlerDelegate(OnPublisherConnected);
+                this.managedMqttClientPublisher.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(OnPublisherDisconnected);
+
+                await this.managedMqttClientPublisher.StartAsync(
+                new ManagedMqttClientOptions
+                {
+                    ClientOptions = mqttClientOptions
+
+                });
+
+
             }
             catch (Exception ex)
             {
@@ -55,17 +81,26 @@ namespace awsiotmqttoverwebsocketswinapp.Presenter
             }
         }
 
-        private void MqttClient_Connected(object sender, MqttClientConnectedEventArgs e)
+        private void OnPublisherConnected(MqttClientConnectedEventArgs e)
         {
             view.ConnectStatusLabel = "Connected";
+        }
+
+        private void OnPublisherDisconnected(MqttClientDisconnectedEventArgs x)
+        {
+            Logger.LogInfo("Publisher Disconnected");
+            view.ConnectStatusLabel = "Connection Lost";
         }
 
         public async Task PublishMessage(string message, string topic)
         {
             try
             {
-                await mqttClient.PublishAsync(topic, message, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce, false);
-                Logger.LogInfo($"Published message: {message}");
+                if (this.managedMqttClientPublisher != null)
+                {
+                    await this.managedMqttClientPublisher.PublishAsync(topic, message, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce, false);
+                    Logger.LogInfo($"Published message: {message}");
+                }
             }
             catch (Exception ex)
             {
@@ -80,9 +115,9 @@ namespace awsiotmqttoverwebsocketswinapp.Presenter
                 if (lastSubscribedTopic != topic)
                 {
                     if (lastSubscribedTopic != null)
-                        await mqttClient.UnsubscribeAsync(lastSubscribedTopic);
+                        await this.managedMqttClientPublisher.UnsubscribeAsync(lastSubscribedTopic);
 
-                    await mqttClient.SubscribeAsync(topic);
+                    await this.managedMqttClientPublisher.SubscribeAsync(topic);
                     Logger.LogInfo($"Subscribed to: {topic}");
                     lastSubscribedTopic = topic;
 
@@ -99,7 +134,7 @@ namespace awsiotmqttoverwebsocketswinapp.Presenter
             }
         }
 
-        private void MqttClient_ApplicationMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
+        private void HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload, 0, e.ApplicationMessage.Payload.Length);
@@ -110,7 +145,7 @@ namespace awsiotmqttoverwebsocketswinapp.Presenter
             stringBuilder.AppendLine("QOS: " + e.ApplicationMessage.QualityOfServiceLevel);
             stringBuilder.AppendLine("QOS Retain: " + e.ApplicationMessage.Retain);
             stringBuilder.AppendLine();
-            
+
             view.ReceivedMessageText = stringBuilder.ToString();
         }
     }
